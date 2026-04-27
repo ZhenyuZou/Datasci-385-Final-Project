@@ -1,0 +1,234 @@
+---
+title: "Population Dynamics: A Comparative Analysis of Eastern Europe and the United States"
+author: 
+  - "Zhenyu Zou (2550392)"
+  - "Lucas Huang (2605675)"
+  - "Hanna FLorence (2582302)"
+  - "Selena Lin (2588029)"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+    theme: cosmo
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+## 1. Introduction
+
+Population dynamics provide a crucial lens into the socioeconomic and public health developments of a nation. This analysis explores three core indicators: Life Expectancy at Birth, Under-5 Mortality Rate, and Adolescent Fertility Rate. By comparing three Eastern European nations (Poland, Romania, Ukraine), the Russian Federation, and the United States as a baseline, we aim to investigate how healthcare outcomes and demographic stability have evolved from 2000 to 2023. 
+
+## 2. Data Description
+
+The dataset utilizes the World Bank's World Development Indicators (WDI), accessed directly via the `wbgapi` Python package. The data was reshaped from a wide format to a tidy, long format using Pandas, ensuring missing values or conflicting labels were handled appropriately. The cleaned dataset was subsequently exported to a local SQLite database (`wdi_population.db`) to allow for structured query analysis.
+
+### 2.1 Data Pre-processing Pipeline
+
+```{python}
+#| label: data-preparation
+#| results: hide
+import wbgapi as wb
+import pandas as pd
+import sqlite3
+
+# Fetch and reshape data
+indicators = ['SP.DYN.LE00.IN', 'SH.DYN.MORT', 'SP.ADO.TFRT']
+countries = ['RUS', 'UKR', 'POL', 'ROU', 'USA']
+df = wb.data.DataFrame(
+    indicators, countries,
+    time=range(2000, 2024),
+    numericTimeKeys=True, labels=True
+)
+
+df_reset = df.reset_index().drop(columns=['Series'])
+df_melted = df_reset.melt(
+    id_vars=['economy', 'Country', 'series'],
+    var_name='Year', value_name='Value'
+)
+df_clean = df_melted.pivot_table(
+    index=['economy', 'Country', 'Year'],
+    columns='series', values='Value'
+).reset_index()
+
+df_clean.columns.name = None
+df_clean = df_clean.rename(columns={
+    'economy': 'Country_Code',
+    'SP.DYN.LE00.IN': 'Life_Expectancy',
+    'SH.DYN.MORT': 'Under_5_Mortality',
+    'SP.ADO.TFRT': 'Adolescent_Fertility'
+})
+
+# Save to SQLite
+conn = sqlite3.connect('wdi_population.db')
+df_clean.to_sql('population_data', conn, if_exists='replace', index=False)
+conn.close()
+```
+
+## 3. Data Analysis
+
+### 3.1 Descriptive Statistics
+
+Using SQL, we extracted high-level summary statistics to establish baseline comparisons across the 24-year period.
+
+```{python}
+#| label: sql-descriptive-stats
+import sqlite3
+import pandas as pd
+
+conn = sqlite3.connect('wdi_population.db')
+query = """
+SELECT 
+    Country,
+    COUNT(Year) AS Years_Recorded,
+    ROUND(AVG(Life_Expectancy), 2) AS Avg_Life_Expectancy,
+    ROUND(MIN(Life_Expectancy), 2) AS Min_Life_Expectancy,
+    ROUND(MAX(Life_Expectancy), 2) AS Max_Life_Expectancy,
+    ROUND(AVG(Under_5_Mortality), 2) AS Avg_Under_5_Mortality,
+    ROUND(AVG(Adolescent_Fertility), 2) AS Avg_Adolescent_Fertility
+FROM population_data
+GROUP BY Country
+ORDER BY Avg_Life_Expectancy DESC;
+"""
+df_stats = pd.read_sql_query(query, conn)
+conn.close()
+
+# Printed as a string to guarantee successful PDF rendering
+print(df_stats.to_string(index=False))
+```
+
+### 3.2 Trend Visualizations
+
+```{python}
+#| label: fig-life-expectancy
+#| fig-cap: "Life Expectancy at Birth (2000-2023)"
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+conn = sqlite3.connect('wdi_population.db')
+df_full = pd.read_sql_query("SELECT * FROM population_data", conn)
+conn.close()
+
+sns.set_theme(style="whitegrid")
+custom_palette = sns.color_palette("husl", 5)
+
+plt.figure(figsize=(10, 5))
+sns.lineplot(
+    data=df_full, x='Year', y='Life_Expectancy',
+    hue='Country', palette=custom_palette, marker='o'
+)
+plt.title('Life Expectancy Trends', fontweight='bold')
+plt.ylabel('Life Expectancy (Years)')
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.show()
+```
+
+### 3.3 Indicator Relationships and Statistical Variance
+
+To assess the relationships between the indicators, we utilized a correlation heatmap and a multi-variable bubble scatter plot.
+
+```{python}
+#| label: fig-correlation-heatmap
+#| fig-cap: "Pearson Correlation Coefficient Matrix"
+corr_matrix = df_full[
+    ['Life_Expectancy', 'Under_5_Mortality', 'Adolescent_Fertility']
+].corr()
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(
+    corr_matrix, annot=True, cmap='coolwarm',
+    vmin=-1, vmax=1, fmt=".2f", linewidths=.5
+)
+plt.title('Statistical Correlation Between Indicators', fontweight='bold')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: fig-bubble-plot
+#| fig-cap: "Indicator Relationships: Mortality vs. Life Expectancy (Size: Fertility)"
+plt.figure(figsize=(10, 5))
+sns.scatterplot(
+    data=df_full, x='Under_5_Mortality', y='Life_Expectancy',
+    hue='Country', size='Adolescent_Fertility',
+    sizes=(50, 400), alpha=0.7,
+    palette=custom_palette, edgecolor='black'
+)
+plt.title('Mortality vs. Life Expectancy', fontweight='bold')
+plt.xlabel('Under-5 Mortality Rate')
+plt.ylabel('Life Expectancy (Years)')
+plt.legend(
+    bbox_to_anchor=(1.05, 1), loc='upper left',
+    title="Country & Fertility"
+)
+plt.tight_layout()
+plt.show()
+```
+
+### 3.4 Distribution and Absolute Improvement
+
+```{python}
+#| label: fig-box-plot
+#| fig-cap: "Volatility and Distribution of Life Expectancy"
+plt.figure(figsize=(9, 5))
+sns.boxplot(
+    data=df_full, x='Country', y='Life_Expectancy',
+    palette=custom_palette, width=0.6
+)
+sns.swarmplot(
+    data=df_full, x='Country', y='Life_Expectancy',
+    color=".25", alpha=0.6
+)
+plt.title('Volatility and Distribution of Life Expectancy', fontweight='bold')
+plt.ylabel('Life Expectancy (Years)')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: fig-bar-chart
+#| fig-cap: "Total Percentage Change in Under-5 Mortality (2000 vs 2023)"
+df_full['Year'] = pd.to_numeric(df_full['Year'])
+df_start = df_full[df_full['Year'] == 2000].set_index('Country')
+df_end = df_full[
+    df_full['Year'] == df_full['Year'].max()
+].set_index('Country')
+
+pct_change = (
+    (df_end['Under_5_Mortality'] - df_start['Under_5_Mortality'])
+    / df_start['Under_5_Mortality']
+) * 100
+pct_change = pct_change.sort_values()
+
+plt.figure(figsize=(9, 4))
+sns.barplot(x=pct_change.values, y=pct_change.index, palette='mako')
+plt.title(
+    'Total Percentage Change in Under-5 Mortality (2000 vs 2023)',
+    fontweight='bold'
+)
+plt.xlabel('Percentage Change (%)')
+
+for i, v in enumerate(pct_change.values):
+    plt.text(v - 2, i, f"{v:.1f}%", color='white', va='center', fontweight='bold')
+
+plt.tight_layout()
+plt.show()
+```
+
+## 4. Results and Discussion
+
+The integration of time-series analysis and statistical correlation reveals several critical insights regarding population dynamics:
+
+1. **Systemic Health Shocks:** The life expectancy distributions show steady historical growth, abruptly interrupted by the COVID-19 pandemic across all nations in 2020-2021. The box plot analysis highlights that nations like the Russian Federation possess much higher historical volatility in this metric compared to the United States.
+2. **Indicator Correlations:** The correlation heatmap confirms a strong negative correlation (-0.89) between Under-5 Mortality and Life Expectancy. The bubble plot further reinforces this, visualizing distinct national clusters where low mortality tightly aligns with higher overall lifespans.
+3. **Pace of Development:** The percentage change analysis reveals that while nations like Romania and the Russian Federation had higher absolute mortality rates in 2000, they achieved the most aggressive relative improvements over the 24-year span, reducing their under-5 mortality rates by over 60%.
+
+## 5. Conclusion
+By aggregating World Bank data with SQL and utilizing Python for multi-variable statistical visualization, this project successfully mapped the trajectories of population dynamics. The data indicates that while specific metrics like pediatric healthcare quality are universally improving and converging globally, overarching public health metrics like life expectancy remain highly vulnerable to sudden, systemic disruptions.
