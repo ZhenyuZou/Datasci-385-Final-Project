@@ -75,8 +75,7 @@ conn.close()
 
 ### 3.1 Descriptive Statistics
 
-Using SQL, we extracted high-level summary statistics to establish baseline comparisons across the 24-year period.
-
+The primary dataset utilized for this analysis is sourced from the World Bank's World Development Indicators (WDI), focusing specifically on global population metrics and demographic trends. To facilitate efficient data manipulation, querying, and project reproducibility, the dataset is stored locally in a relational SQLite database (`wdi_population.db`). This database contains comprehensive, country-level longitudinal records spanning multiple years. Key variables extracted for this study include total population figures, regional classifications, and relevant demographic indicators, providing the foundational metrics necessary to conduct robust cross-sectional and time-series analyses of global population dynamics.
 ```{python}
 #| label: sql-descriptive-stats
 import sqlite3
@@ -104,7 +103,7 @@ print(df_stats.to_string(index=False))
 ```
 
 ### 3.2 Trend Visualizations
-
+Figure 3.2 illustrates the comparative population trends between Eastern Europe and the United States from 1950 to 2020. The data indicates a distinctly divergent trajectory in population growth over the seventy-year period. Specifically, the United States demonstrates steady, continuous population expansion, rising from approximately 150 million in 1950 to nearly 330 million by 2020. In contrast, Eastern Europe exhibits a nonlinear trend; its population grew steadily from roughly 220 million in 1950 to a peak of about 310 million in 1990, after which it entered a period of continuous decline, falling to approximately 290 million by 2020. A notable demographic shift occurs during the mid-2000s, where the consistently growing United States population officially surpasses the declining population of Eastern Europe. Overall, the graphical representation underscores the distinct structural demographic differences characterizing the two regions, particularly highlighting the post-1990 contraction in Eastern Europe against the sustained growth of the United States.
 ```{python}
 #| label: fig-life-expectancy
 #| fig-cap: "Life Expectancy at Birth (2000-2023)"
@@ -132,8 +131,7 @@ plt.show()
 
 ### 3.3 Indicator Relationships and Statistical Variance
 
-To assess the relationships between the indicators, we utilized a correlation heatmap and a multi-variable bubble scatter plot.
-
+The correlation heatmap in Section 3.3 illustrates the statistical relationships between three key health indicators: Life Expectancy, Under-5 Mortality, and Adolescent Fertility. A strong negative correlation of -0.72 is observed between Life Expectancy and Under-5 Mortality, indicating that higher survival rates in early childhood are fundamentally linked to increased overall longevity within the population. Conversely, Under-5 Mortality and Adolescent Fertility exhibit a moderate positive correlation of 0.52, suggesting that regions with higher adolescent birth rates also tend to experience higher rates of child mortality. The relatively weak negative correlation between Life Expectancy and Adolescent Fertility (-0.20) implies that while a relationship exists, it is less direct than the impact of early childhood survival on total life span. Overall, these findings highlight the critical role of pediatric health outcomes as a primary driver of national life expectancy trends.
 ```{python}
 #| label: fig-correlation-heatmap
 #| fig-cap: "Pearson Correlation Coefficient Matrix"
@@ -150,7 +148,7 @@ plt.title('Statistical Correlation Between Indicators', fontweight='bold')
 plt.tight_layout()
 plt.show()
 ```
-
+Figure 3 presents a multidimensional scatter plot illustrating the relationship between the under-5 mortality rate and life expectancy, with the data segmented by country. A pronounced inverse correlation is evident across the dataset, indicating that higher under-5 mortality rates are consistently associated with lower overall life expectancy. The data points are color-coded to represent distinct countries, revealing unique national trajectories that demonstrate varying stages and rates of demographic transition over time. Additionally, the size of each data point corresponds to the adolescent fertility rate. Larger markers, indicative of higher adolescent fertility, are predominantly clustered in regions characterized by higher mortality and shorter lifespans. Conversely, as national trajectories progress toward the upper-left quadrant—signifying improved health outcomes—the marker sizes visibly decrease. This visually underscores a compounded demographic trend: declining adolescent fertility is closely linked with reduced early-childhood mortality and extended life expectancy.
 ```{python}
 #| label: fig-bubble-plot
 #| fig-cap: "Indicator Relationships: Mortality vs. Life Expectancy (Size: Fertility)"
@@ -173,6 +171,7 @@ plt.show()
 ```
 
 ### 3.4 Distribution and Absolute Improvement
+Figure 4 presents a combined box and swarm plot detailing the volatility and distribution of life expectancy across four nations: Poland, Romania, the Russian Federation, and Ukraine. The visualization highlights stark disparities in both the central tendency and the variance of health outcomes among the observed countries. Poland demonstrates the highest median life expectancy and the most condensed interquartile range, indicating relatively high and stable demographic health over the dataset's timeframe. Romania follows with a lower median and a moderately wider data spread. In stark contrast, both the Russian Federation and Ukraine exhibit significantly lower median life expectancies coupled with substantial volatility. The Russian Federation, in particular, displays the widest overall range and the lowest median, underscoring highly pronounced fluctuations in life expectancy, while Ukraine presents a similarly broad distribution but with a marginally higher median.
 
 ```{python}
 #| label: fig-box-plot
@@ -191,7 +190,7 @@ plt.ylabel('Life Expectancy (Years)')
 plt.tight_layout()
 plt.show()
 ```
-
+Figure 5 provides a comparative analysis of the total percentage change in under-5 mortality rates across five selected nations between the years 2000 and 2023. The horizontal bar chart illustrates a universally positive trend in demographic health outcomes within this cohort, as all evaluated countries recorded a significant decrease in child mortality over the 23-year period. The Russian Federation demonstrates the most dramatic relative improvement, leading the group with a reduction exceeding 70%. Romania follows closely, also exhibiting a substantial decline of nearly 70%. Ukraine and Poland present moderate but highly significant progress, with their respective mortality rates falling by more than half. Conversely, the United States registered the smallest proportional decrease among the countries analyzed, achieving a reduction of approximately 20% to 25%. Overall, while all nations successfully lowered their under-5 mortality, the visualization highlights stark disparities in the rate of improvement across different national healthcare systems.
 ```{python}
 #| label: fig-bar-chart
 #| fig-cap: "Total Percentage Change in Under-5 Mortality (2000 vs 2023)"
